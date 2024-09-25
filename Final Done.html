@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Details</title>
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    background-color: #e7e4f2;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 1000px;
+    width: 100%;
+    margin: 20px auto; /* Allow scrolling and spacing */
+}
+
+h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #000;
+}
+
+input[type="email"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+
+input[type="email"]:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+button {
+    padding: 12px 20px;
+    width: 100%;
+    background-color: #000;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #444;
+}
+
+#result {
+    color: #000;
+    margin-top: 20px;
+    text-align: center;
+    overflow-x: auto;
+    width: 100%;
+}
+
+table {
+    margin-top: 20px;
+    border-collapse: collapse;
+    width: 100%; /* Make table take full width */
+}
+
+th, td {
+    border: 1px solid #444;
+    padding: 15px;
+    text-align: left;
+    font-size: 1.1em;
+    word-wrap: break-word; /* Allow content to wrap */
+}
+
+th {
+    background-color: #333;
+    color: white;
+    font-weight: bold;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}
+
+a {
+    color: #007BFF;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+    .container {
+        width: 90%;
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+}
+
+html, body {
+    overflow-y: scroll; /* Allow vertical scrolling */
+}
+
+    </style>
+    <script>
+        async function fetchOrderDetails() {
+            const email = document.getElementById('email').value;
+            const submitButton = document.getElementById('submit-button');
+            const resultDiv = document.getElementById('result');
+
+            submitButton.innerText = 'Finding...';
+            submitButton.disabled = true;
+            resultDiv.innerHTML = 'Fetching your order details...';
+
+            const fetchPromise = fetch(`https://n8n.urbanstarter.in/webhook/getOrderDetails?email=${encodeURIComponent(email)}`);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout')), 5000)
+            );
+
+            try {
+                const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayResults(data);
+                } else {
+                    resultDiv.innerHTML = 'No order found for this email.';
+                }
+            } catch (error) {
+                if (error.message === 'Timeout') {
+                    resultDiv.innerHTML = 'No email found in the database. Please try again.';
+                } else {
+                    resultDiv.innerHTML = 'An error occurred. Please try again.';
+                }
+            } finally {
+                submitButton.innerText = 'Submit';
+                submitButton.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+    const resultDiv = document.getElementById('result');
+    if (data.length > 0) {
+        let tableHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Row Number</th>
+                        <th>No. Of Leads</th>
+                        <th>Apollo URL</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>File Name (Tag)</th>
+                        <th>Google Sheet</th>
+                        <th>Submitted At</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        // Reverse the array to show last request first
+        const reversedData = data.reverse();
+
+        reversedData.forEach((item, index) => {
+            tableHTML += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item["No. Of Leads (In Thousands) "]}</td>
+                    <td><a href="${item["Apollo URL"]}" target="_blank">View</a></td>
+                    <td>${item.Status}</td>
+                    <td>${item.Price}</td>
+                    <td>${item["Add a tag to identify the scrape"]}</td>
+                    <td><a href="${item["URL of the google Sheet"]}" target="_blank">Open Sheet</a></td>
+                    <td>${item["Submitted at"]}</td>
+                </tr>`;
+        });
+        tableHTML += `
+                </tbody>
+            </table>`;
+        resultDiv.innerHTML = tableHTML;
+    } else {
+        resultDiv.innerHTML = 'No order found for this email.';
+    }
+}
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailInput = document.getElementById('email');
+            const submitButton = document.getElementById('submit-button');
+
+            emailInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    fetchOrderDetails();
+                }
+            });
+
+            submitButton.disabled = false;
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Get Your Order Details</h1>
+        <input type="email" id="email" placeholder="Enter your email" required>
+        <button id="submit-button" onclick="fetchOrderDetails()">Submit</button>
+        <div id="result"></div>
+    </div>
+</body>
+</html>
